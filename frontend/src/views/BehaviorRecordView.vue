@@ -31,6 +31,7 @@ const jumpPage = ref<number | null>(null);
 
 const detailChainId = ref<number | null>(null);
 const detailPersonId = ref<number | null>(null);
+const detailBehaviorId = ref<number | null>(null);
 const evidenceText = ref<string | null>(null);
 
 async function loadData() {
@@ -176,7 +177,7 @@ onMounted(async () => {
               <button class="link" @click="detailChainId = item.track_id">查看轨迹</button>
             </small>
             <small v-if="item.person_id">
-              <button class="link" @click="detailPersonId = item.person_id">查看人员</button>
+              <button class="link" @click="detailPersonId = item.person_id; detailBehaviorId = item.behavior_id">查看人员</button>
             </small>
           </span>
         </div>
@@ -194,7 +195,7 @@ onMounted(async () => {
     </div>
 
     <TrackDetailModal v-if="detailChainId" :chain-id="detailChainId" @close="detailChainId = null" />
-    <PersonDetailModal v-if="detailPersonId" :visible="!!detailPersonId" :person-id="detailPersonId" @update:visible="detailPersonId = null" />
+    <PersonDetailModal v-if="detailPersonId" :visible="!!detailPersonId" :person-id="detailPersonId" :behavior-id="detailBehaviorId" @update:visible="detailPersonId = null; detailBehaviorId = null" />
     <BehaviorEvidenceModal v-if="evidenceText" :raw="evidenceText" @close="evidenceText = null" />
   </div>
 </template>

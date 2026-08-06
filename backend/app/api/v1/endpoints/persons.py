@@ -15,6 +15,7 @@ from app.models import (
     DmBehaviorType,
     DmSeverityLevel,
     FaAbnormalBehavior,
+    FaBehaviorAlert,
     SysAccount,
     TrackPassChain,
 )
@@ -189,12 +190,45 @@ class FocusBody(BaseModel):
 
 
 @router.get("/{person_id:int}")
-async def person_detail(person_id: int, db: AsyncSession = Depends(get_db), _: SysAccount = Depends(get_current_account)):
+async def person_detail(
+    person_id: int,
+    behavior_id: int | None = Query(default=None),
+    alert_id: int | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    _: SysAccount = Depends(get_current_account),
+):
     person = (
         await db.execute(select(DmAnonymousPerson).where(DmAnonymousPerson.person_id == person_id))
     ).scalar_one_or_none()
     if person is None:
         raise HTTPException(status_code=404, detail="人员不存在")
+
+    display_name = f"陌生人{person_id}"
+    review_source = None
+    if behavior_id:
+        review_source = (
+            await db.execute(
+                select(
+                    FaAbnormalBehavior.person_identity,
+                    FaAbnormalBehavior.reviewed_person_name,
+                ).where(FaAbnormalBehavior.behavior_id == behavior_id)
+            )
+        ).one_or_none()
+    elif alert_id:
+        review_source = (
+            await db.execute(
+                select(
+                    FaBehaviorAlert.person_identity,
+                    FaBehaviorAlert.reviewed_person_name,
+                ).where(FaBehaviorAlert.alert_id == alert_id)
+            )
+        ).one_or_none()
+    if review_source:
+        identity, reviewed_name = review_source
+        if identity == "registered" and reviewed_name:
+            display_name = reviewed_name
+        elif identity == "stranger":
+            display_name = f"陌生人{person_id}"
     matched_account = SysAccount.__table__.alias("matched_account")
     matched_name = None
     if person.matched_user_id:
@@ -255,6 +289,7 @@ async def person_detail(person_id: int, db: AsyncSession = Depends(get_db), _: S
     return ok(
         {
             "person_id": person.person_id,
+            "display_name": display_name,
             "appearance_desc": person.appearance_desc,
             "first_seen_at": fmt(person.first_seen_at),
             "last_seen_at": fmt(person.last_seen_at),

@@ -2,7 +2,10 @@
   <div class="modal-mask" v-if="visible" @click.self="close">
     <div class="modal person-modal">
       <div class="modal-header">
-        <h3>人员详情</h3>
+        <div>
+          <h3>人员详情</h3>
+          <h2 v-if="detail?.display_name" class="person-display-name">{{ detail.display_name }}</h2>
+        </div>
         <button class="modal-close" @click="close">&times;</button>
       </div>
       <div class="modal-body" v-if="detail">
@@ -54,20 +57,28 @@
 import { ref, watch } from "vue";
 import { api, type PersonDetail } from "../api";
 
-const props = defineProps<{ visible: boolean; personId: number | null }>();
+const props = defineProps<{
+  visible: boolean;
+  personId: number | null;
+  behaviorId?: number | null;
+  alertId?: number | null;
+}>();
 const emit = defineEmits<{ (e: "update:visible", value: boolean): void }>();
 
 const detail = ref<PersonDetail | null>(null);
 const loadError = ref("");
 
 watch(
-  () => [props.visible, props.personId],
+  () => [props.visible, props.personId, props.behaviorId, props.alertId],
   async ([visible, personId]) => {
     if (visible && personId) {
       detail.value = null;
       loadError.value = "";
       try {
-        detail.value = await api.personDetail(personId);
+        detail.value = await api.personDetail(personId, {
+          behavior_id: props.behaviorId ?? undefined,
+          alert_id: props.alertId ?? undefined,
+        });
       } catch (error: any) {
         detail.value = null;
         loadError.value = error.message || "人员详情加载失败";
@@ -105,6 +116,12 @@ function close() {
   margin: 0;
   font-size: 15px;
   color: #25364d;
+}
+.person-display-name {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 .modal-close {
   font-size: 20px;

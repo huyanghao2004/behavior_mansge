@@ -276,11 +276,13 @@ async def review_alert(
         alert.reviewed_at = now
         alert.false_positive = 1 if body.false_positive else 0
         alert.person_identity = body.person_identity
+        alert.reviewed_person_name = body.person_name if body.person_identity == "registered" else None
 
         behavior.alert_status_id = 6
         behavior.is_archived = 1
         behavior.false_positive = 1 if body.false_positive else 0
         behavior.person_identity = body.person_identity
+        behavior.reviewed_person_name = body.person_name if body.person_identity == "registered" else None
         behavior.reviewed_by = account.account_id
         behavior.reviewed_at = now
         # 选中登记人员时绑定到匿名人员 person_id，驱动异常行为轨迹业务关联

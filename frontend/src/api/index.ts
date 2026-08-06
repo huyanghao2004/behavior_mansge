@@ -280,6 +280,7 @@ export interface SimulateFaultResult {
 
 export interface PersonItem {
   person_id: number;
+  display_name: string;
   appearance_desc: string | null;
   first_seen_at: string | null;
   last_seen_at: string | null;
@@ -561,7 +562,8 @@ export const api = {
   deleteRole: (typeId: number) => http.delete<void>(`/system/roles/${typeId}`),
   createRole: (body: { type_name: string; type_desc?: string }) => http.post<{ type_id: number }>("/system/roles", body),
   dataIndex: () => http.get<DataIndexSummary>("/dashboard/data-index", { ...getLabIncludeParam() }),
-  personDetail: (personId: number) => http.get<PersonDetail>(`/persons/${personId}`),
+  personDetail: (personId: number, params?: { behavior_id?: number; alert_id?: number }) =>
+    http.get<PersonDetail>(`/persons/${personId}`, params),
   exportBehaviors: (params: { type_id?: number; severity_id?: number; status_id?: number; camera_id?: number; region_name?: string; start_time?: string; end_time?: string; keyword?: string }) =>
     http.download("/behaviors/export", params, "abnormal_behaviors.csv"),
   exportTracks: (params: { chain_status?: number; keyword?: string; start_time?: string; end_time?: string }) =>
