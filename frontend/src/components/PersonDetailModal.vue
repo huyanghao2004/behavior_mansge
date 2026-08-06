@@ -5,12 +5,15 @@
         <div>
           <h3>人员详情</h3>
           <h2 v-if="detail?.display_name" class="person-display-name">{{ detail.display_name }}</h2>
+          <div v-if="detail?.display_name && detail.display_name !== `陌生人${detail.person_id}`" class="person-id-hint">
+            算法识别ID {{ detail.person_id }}，复核后已关联登记人员
+          </div>
         </div>
         <button class="modal-close" @click="close">&times;</button>
       </div>
       <div class="modal-body" v-if="detail">
         <div class="person-info-grid">
-          <div class="info-item"><span class="label">人员ID</span><span class="value">{{ detail.person_id }}</span></div>
+          <div class="info-item"><span class="label">算法识别ID</span><span class="value">{{ detail.person_id }}</span></div>
           <div class="info-item"><span class="label">是否关注</span><span class="value">{{ detail.is_focused ? "重点关注" : "普通" }}</span></div>
           <div class="info-item"><span class="label">首次出现</span><span class="value">{{ detail.first_seen_at || "-" }}</span></div>
           <div class="info-item"><span class="label">最后出现</span><span class="value">{{ detail.last_seen_at || "-" }}</span></div>
@@ -122,6 +125,11 @@ function close() {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
+}
+.person-id-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
 }
 .modal-close {
   font-size: 20px;

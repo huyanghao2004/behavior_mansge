@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -5,6 +6,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.core.security import get_current_account
 from app.db.session import get_db
@@ -225,10 +228,13 @@ async def person_detail(
         ).one_or_none()
     if review_source:
         identity, reviewed_name = review_source
+        print(f"[DEBUG person_detail] person_id={person_id} behavior_id={behavior_id} identity={identity} reviewed_name={reviewed_name}")
         if identity == "registered" and reviewed_name:
             display_name = reviewed_name
         elif identity == "stranger":
             display_name = f"陌生人{person_id}"
+    else:
+        print(f"[DEBUG person_detail] person_id={person_id} behavior_id={behavior_id} alert_id={alert_id} review_source=None")
     matched_account = SysAccount.__table__.alias("matched_account")
     matched_name = None
     if person.matched_user_id:
