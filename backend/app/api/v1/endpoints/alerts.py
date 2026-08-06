@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_current_account
@@ -299,31 +300,40 @@ async def review_alert(
                 if selected_account is not None:
                     chain.person_id = selected_account.account_id
 
-        await write_log(
-            db,
-            "BEHAVIOR_REVIEW",
-            "CREATE",
-            account,
-            alert.behavior_id,
-            "BEHAVIOR",
-            {
-                "alert_id": alert_id,
-                "false_positive": body.false_positive,
-                "person_identity": body.person_identity,
-                "person_id": body.person_id,
-                "person_name": body.person_name,
-                "note": body.note,
-            },
-        )
-        await db.commit()
-        return ok(message="复核完成并已归档")
+        try:
+            await write_log(
+                db,
+                "BEHAVIOR_REVIEW",
+                "CREATE",
+                account,
+                alert.behavior_id,
+                "BEHAVIOR",
+                {
+                    "alert_id": alert_id,
+                    "false_positive": body.false_positive,
+                    "person_identity": body.person_identity,
+                    "person_id": body.person_id,
+                    "person_name": body.person_name,
+                    "note": body.note,
+                },
+            )
+            await db.commit()
+            return ok(message="复核完成并已归档")
+        except IntegrityError as e:
+            await db.rollback()
+            logger.exception("review_alert integrity error: alert_id=%s, person_id=%s", alert_id, body.person_id)
+            raise HTTPException(status_code=400, detail=f"数据完整性错误：{e.__cause__ or e}")
+        except SQLAlchemyError as e:
+            await db.rollback()
+            logger.exception("review_alert db error: alert_id=%s, person_id=%s", alert_id, body.person_id)
+            raise HTTPException(status_code=500, detail=f"数据库处理异常：{e}")
     except HTTPException:
         await db.rollback()
         raise
     except Exception as exc:
         await db.rollback()
         logger.exception("review_alert failed: alert_id=%s, person_id=%s, error=%s", alert_id, body.person_id, exc)
-        raise HTTPException(status_code=500, detail="复核归档处理失败，请稍后重试或联系管理员")
+        raise HTTPException(status_code=500, detail=f"复核归档处理失败：{exc}")
 
 
 @router.get("/export")

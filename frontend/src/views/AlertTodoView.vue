@@ -522,6 +522,10 @@ function friendlyReviewError(error: any): string {
     return `提交失败：${msg}`;
   }
   if (status === 500) {
+    // 后端开启调试错误时，展示具体原因便于定位
+    if (typeof msg === "string" && (msg.includes("数据库处理异常") || msg.includes("复核归档处理失败"))) {
+      return `复核归档失败：${msg}`;
+    }
     return "复核归档失败，系统繁忙，请稍后重试或联系管理员";
   }
   if (status === 0 || !status) {
