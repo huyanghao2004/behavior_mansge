@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.models import (
     Device,
     DmAlertStatus,
+    DmAnonymousPerson,
     DmBehaviorType,
     DmSeverityLevel,
     FaAbnormalBehavior,
@@ -233,6 +234,7 @@ async def review_alert(
             raise HTTPException(status_code=400, detail="人员身份取值不合法")
         # 条件必填校验：登记人员必须选具体系统账号；其他身份强制清空，防前端未清空导致脏数据
         selected_account: SysAccount | None = None
+        linked_person_id: int | None = None
         if body.person_identity == "registered":
             if body.person_id is None:
                 raise HTTPException(status_code=400, detail="人员身份为数据库登记人员时，必须选择具体账号")
@@ -244,6 +246,17 @@ async def review_alert(
             # 冗余存档账号名称，防后续账号被删后归档记录无法展示
             if not body.person_name:
                 body.person_name = selected_account.real_name or selected_account.login_name or f"账号#{selected_account.account_id}"
+            # 通过 matched_user_id 找到对应的匿名人员 person_id
+            # fa_abnormal_behavior.person_id 外键指向 dm_anonymous_person.person_id
+            linked_person = (
+                await db.execute(
+                    select(DmAnonymousPerson)
+                    .where(DmAnonymousPerson.matched_user_id == selected_account.account_id)
+                    .limit(1)
+                )
+            ).scalars().first()
+            if linked_person is not None:
+                linked_person_id = linked_person.person_id
         else:
             body.person_id = None
             body.person_name = None
@@ -270,9 +283,9 @@ async def review_alert(
         behavior.person_identity = body.person_identity
         behavior.reviewed_by = account.account_id
         behavior.reviewed_at = now
-        # 选中登记人员时绑定到该系统账号，驱动异常行为轨迹业务关联
-        if selected_account is not None:
-            behavior.person_id = selected_account.account_id
+        # 选中登记人员时绑定到匿名人员 person_id，驱动异常行为轨迹业务关联
+        if linked_person_id is not None:
+            behavior.person_id = linked_person_id
         review_lines = [behavior.description or ""]
         if selected_account is not None:
             review_lines.append(f"登记人员：{body.person_name}(ID:{selected_account.account_id})")
@@ -292,8 +305,8 @@ async def review_alert(
             ).scalar_one_or_none()
             if chain:
                 chain.is_archived = 1
-                if selected_account is not None:
-                    chain.person_id = selected_account.account_id
+                if linked_person_id is not None:
+                    chain.person_id = linked_person_id
 
         try:
             await write_log(
