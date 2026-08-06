@@ -237,12 +237,7 @@ async def review_alert(
             if body.person_id is None:
                 raise HTTPException(status_code=400, detail="人员身份为数据库登记人员时，必须选择具体账号")
             selected_account = (
-                await db.execute(
-                    select(SysAccount).where(
-                        SysAccount.account_id == body.person_id,
-                        SysAccount.is_deleted == 0,
-                    )
-                )
+                await db.execute(select(SysAccount).where(SysAccount.account_id == body.person_id))
             ).scalar_one_or_none()
             if selected_account is None:
                 raise HTTPException(status_code=400, detail="所选账号不存在或已被删除，请重新选择")
