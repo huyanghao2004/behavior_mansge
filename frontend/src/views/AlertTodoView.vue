@@ -515,16 +515,33 @@ function closeVideoPlayer() {
   }
 }
 
+function friendlyReviewError(error: any): string {
+  const status = error?.status ?? error?.code;
+  const msg = error?.message || "未知错误";
+  if (status === 400) {
+    return `提交失败：${msg}`;
+  }
+  if (status === 500) {
+    return "复核归档失败，系统繁忙，请稍后重试或联系管理员";
+  }
+  if (status === 0 || !status) {
+    return "网络连接异常，请检查网络后重试";
+  }
+  return `提交失败：${msg}`;
+}
+
 async function submitReview() {
-  if (!currentReview.value) return;
+  if (!currentReview.value || submitting.value) return;
   reviewFormError.value = "";
   if (reviewPersonIdentity.value === "registered" && !reviewPersonId.value) {
     reviewFormError.value = "请选择具体的系统账号";
     return;
   }
   submitting.value = true;
+  errorText.value = "";
+  const alertId = currentReview.value.alert_id;
   try {
-    await api.reviewAlert(currentReview.value.alert_id, {
+    await api.reviewAlert(alertId, {
       false_positive: reviewFalsePositive.value,
       person_identity: reviewPersonIdentity.value,
       person_id: reviewPersonIdentity.value === "registered" ? reviewPersonId.value : null,
@@ -532,13 +549,16 @@ async function submitReview() {
       note: reviewNote.value || undefined,
     });
     showReview.value = false;
-    currentReview.value.alert_status_id = 6;
-    currentReview.value.status_name = "已复核归档";
-    notice.value = `告警 #${currentReview.value.alert_id} 已复核归档`;
+    if (currentReview.value) {
+      currentReview.value.alert_status_id = 6;
+      currentReview.value.status_name = "已复核归档";
+    }
+    notice.value = `告警 #${alertId} 已复核归档`;
     await auth.refreshPendingCount();
   } catch (error: any) {
-    errorText.value = error.message;
-    if (reviewPersonIdentity.value === "registered" && /删除|不存在|账号/.test(error.message || "")) {
+    errorText.value = friendlyReviewError(error);
+    reviewFormError.value = friendlyReviewError(error);
+    if (reviewPersonIdentity.value === "registered" && /删除|不存在|账号/.test(error?.message || "")) {
       reviewPersonId.value = null;
       reviewPersonName.value = "";
       personOptions.value = [];
